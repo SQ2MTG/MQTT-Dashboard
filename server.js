@@ -7,7 +7,7 @@ const util = require('util');
 const execPromise = util.promisify(exec);
 
 const app = express();
-const PORT = 3000;
+const PORT = 3003;
 
 // Ścieżki do plików
 const CONFIG_FILE = path.join(__dirname, 'config.json');
@@ -17,6 +17,11 @@ const THRESHOLDS_FILE = path.join(__dirname, 'thresholds.json');
 // Middleware
 app.use(express.json());
 app.use(express.static(__dirname));
+
+// Główna trasa - serwuj index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // Domyślna konfiguracja
 const DEFAULT_CONFIG = {
@@ -244,8 +249,10 @@ app.post('/api/notify', async (req, res) => {
 async function startServer() {
     await initDirectories();
     
-    app.listen(PORT, () => {
-        console.log(`🚀 MQTT Dashboard uruchomiony na http://localhost:${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`🚀 MQTT Dashboard uruchomiony na:`);
+        console.log(`   - Lokalnie: http://localhost:${PORT}`);
+        console.log(`   - W sieci lokalnej: http://[TWOJE_IP]:${PORT}`);
         console.log(`📁 Dane przechowywane w: ${DATA_DIR}`);
     });
 }
