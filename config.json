@@ -1,0 +1,10 @@
+{
+  "broker": "ws://10.10.0.4:9002",
+  "topics": [
+    "sensors/#"
+  ],
+  "pushover": {
+    "token": "akd8sqxoo4q17qv72g62v4wyu7ufem",
+    "user": "uuf2ajfth5tayjcser9wy8wuux6ncz"
+  }
+}

@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 28px;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ef4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: #10b981;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .controls h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .topic-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .topic-input input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .topic-input input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .topic-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .topic-tag {
+            background: #e0e7ff;
+            color: #667eea;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .topic-tag .remove {
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .dashboard {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .topic-tree {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .topic-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s;
+        }
+
+        .topic-item.hidden {
+            opacity: 0.5;
+        }
+
+        .topic-item.normal {
+            border-left: 4px solid #10b981;
+        }
+
+        .topic-item.warning {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .topic-item.critical {
+            border-left: 4px solid #ef4444;
+        }
+
+        .topic-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .topic-name {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 14px;
+        }
+
+        .topic-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            font-size: 16px;
+            opacity: 0.6;
+            transition: opacity 0.3s;
+        }
+
+        .icon-btn:hover {
+            opacity: 1;
+        }
+
+        .topic-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .topic-timestamp {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .chart-container {
+            margin-top: 15px;
+            height: 150px;
+            display: none;
+        }
+
+        .chart-container.visible {
+            display: block;
+        }
+
+        .threshold-config {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .threshold-config.visible {
+            display: block;
+        }
+
+        .threshold-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .threshold-row label {
+            width: 120px;
+            font-size: 13px;
+            color: #4b5563;
+        }
+
+        .threshold-row input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.visible {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #4b5563;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e5e7eb;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 MQTT Dashboard</h1>
+            <div class="status">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span id="statusText">Rozłączony</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <h2>Zarządzanie Subskrypcjami</h2>
+            <div class="topic-input">
+                <input type="text" id="newTopic" placeholder="Wprowadź topic do subskrypcji (np. sensors/#)">
+                <button class="btn btn-primary" onclick="addTopic()">Dodaj Topic</button>
+            </div>
+            <div class="topic-list" id="topicList"></div>
+        </div>
+
+        <div class="dashboard">
+            <h2 style="margin-bottom: 20px; color: #333;">Odbierane Dane</h2>
+            <div class="topic-tree" id="topicTree"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="thresholdModal">
+        <div class="modal-content">
+            <h3>Konfiguracja Progów i Powiadomień</h3>
+            <div class="form-group">
+                <label>Topic:</label>
+                <input type="text" id="modalTopic" readonly>
+            </div>
+            <div class="form-group">
+                <label>Próg Ostrzeżenia (≥):</label>
+                <input type="number" id="modalWarning" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>Próg Krytyczny (>):</label>
+                <input type="number" id="modalCritical" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>Nazwa Urządzenia:</label>
+                <input type="text" id="modalDevice" placeholder="np. Salon">
+            </div>
+            <div class="form-group">
+                <label>Nazwa Sensora:</label>
+                <input type="text" id="modalSensor" placeholder="np. Temperatura">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-danger" onclick="closeThresholdModal()">Anuluj</button>
+                <button class="btn btn-primary" onclick="saveThresholds()">Zapisz</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let client = null;
+        let config = {
+            broker: 'ws://10.10.0.4:9002',
+            topics: [],
+            pushover: {
+                token: 'akd8sqxoo4q17qv72g62v4wyu7ufem',
+                user: 'uuf2ajfth5tayjcser9wy8wuux6ncz'
+            }
+        };
+        let topicData = {};
+        let charts = {};
+        let currentConfigTopic = null;
+
+        // Inicjalizacja
+        async function init() {
+            await loadConfig();
+            connectMQTT();
+            renderTopicList();
+            setInterval(cleanOldData, 3600000); // Co godzinę czyść stare dane
+        }
+
+        // Ładowanie konfiguracji
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const data = await response.json();
+                config = {...config, ...data};
+            } catch (error) {
+                console.log('Używam domyślnej konfiguracji');
+            }
+        }
+
+        // Zapisywanie konfiguracji
+        async function saveConfig() {
+            try {
+                await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(config)
+                });
+            } catch (error) {
+                console.error('Błąd zapisu konfiguracji:', error);
+            }
+        }
+
+        // Połączenie MQTT
+        function connectMQTT() {
+            const clientId = 'mqtt_dashboard_' + Math.random().toString(16).substr(2, 8);
+            client = new Paho.MQTT.Client(config.broker.replace('ws://', '').split(':')[0], 
+                                          parseInt(config.broker.split(':')[2]), 
+                                          clientId);
+
+            client.onConnectionLost = onConnectionLost;
+            client.onMessageArrived = onMessageArrived;
+
+            client.connect({
+                onSuccess: onConnect,
+                onFailure: onFailure
+            });
+        }
+
+        function onConnect() {
+            document.getElementById('statusIndicator').classList.add('connected');
+            document.getElementById('statusText').textContent = 'Połączony';
+            
+            config.topics.forEach(topic => {
+                client.subscribe(topic);
+            });
+        }
+
+        function onFailure(error) {
+            console.error('Błąd połączenia:', error);
+            setTimeout(connectMQTT, 5000);
+        }
+
+        function onConnectionLost(error) {
+            document.getElementById('statusIndicator').classList.remove('connected');
+            document.getElementById('statusText').textContent = 'Rozłączony';
+            setTimeout(connectMQTT, 5000);
+        }
+
+        async function onMessageArrived(message) {
+            const topic = message.destinationName;
+            const value = message.payloadString;
+            const timestamp = new Date();
+
+            if (!topicData[topic]) {
+                topicData[topic] = {
+                    values: [],
+                    visible: true,
+                    chartVisible: false,
+                    thresholds: {
+                        warning: null,
+                        critical: null,
+                        device: '',
+                        sensor: ''
+                    },
+                    lastState: 'normal'
+                };
+            }
+
+            topicData[topic].values.push({value, timestamp});
+            topicData[topic].lastValue = value;
+            topicData[topic].lastUpdate = timestamp;
+
+            // Ogranicz historię do 1000 punktów
+            if (topicData[topic].values.length > 1000) {
+                topicData[topic].values.shift();
+            }
+
+            // Sprawdź progi i wyślij powiadomienie
+            await checkThresholds(topic, value);
+
+            // Zapisz dane
+            await saveData(topic, value, timestamp);
+
+            renderTopicTree();
+            updateChart(topic);
+        }
+
+        async function checkThresholds(topic, value) {
+            const data = topicData[topic];
+            if (!data.thresholds.warning && !data.thresholds.critical) return;
+
+            const numValue = parseFloat(value);
+            if (isNaN(numValue)) return;
+
+            let currentState = 'normal';
+            let priority = 0;
+
+            if (data.thresholds.critical && numValue > data.thresholds.critical) {
+                currentState = 'critical';
+                priority = 2;
+            } else if (data.thresholds.warning && numValue >= data.thresholds.warning) {
+                currentState = 'warning';
+                priority = 1;
+            }
+
+            // Wyślij powiadomienie tylko przy zmianie stanu
+            if (currentState !== data.lastState && currentState !== 'normal') {
+                await sendNotification(topic, value, currentState, priority, data.thresholds);
+            }
+
+            data.lastState = currentState;
+        }
+
+        async function sendNotification(topic, value, state, priority, thresholds) {
+            const hostname = window.location.hostname || 'dashboard';
+            const device = thresholds.device || 'Nieznane urządzenie';
+            const sensor = thresholds.sensor || topic;
+            const stateName = state === 'critical' ? 'KRYTYCZNY' : 'OSTRZEŻENIE';
+            
+            const message = `${hostname} | ${device} | ${sensor} | ${stateName} | Wartość: ${value}`;
+
+            try {
+                await fetch('/api/notify', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        message,
+                        priority,
+                        topic
+                    })
+                });
+            } catch (error) {
+                console.error('Błąd wysyłania powiadomienia:', error);
+            }
+        }
+
+        async function saveData(topic, value, timestamp) {
+            try {
+                await fetch('/api/data', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({topic, value, timestamp: timestamp.toISOString()})
+                });
+            } catch (error) {
+                console.error('Błąd zapisu danych:', error);
+            }
+        }
+
+        async function cleanOldData() {
+            try {
+                await fetch('/api/data/clean', {method: 'POST'});
+            } catch (error) {
+                console.error('Błąd czyszczenia danych:', error);
+            }
+        }
+
+        function addTopic() {
+            const input = document.getElementById('newTopic');
+            const topic = input.value.trim();
+            
+            if (topic && !config.topics.includes(topic)) {
+                config.topics.push(topic);
+                if (client && client.isConnected()) {
+                    client.subscribe(topic);
+                }
+                saveConfig();
+                renderTopicList();
+                input.value = '';
+            }
+        }
+
+        function removeTopic(topic) {
+            config.topics = config.topics.filter(t => t !== topic);
+            if (client && client.isConnected()) {
+                client.unsubscribe(topic);
+            }
+            saveConfig();
+            renderTopicList();
+        }
+
+        function renderTopicList() {
+            const list = document.getElementById('topicList');
+            list.innerHTML = config.topics.map(topic => `
+                <div class="topic-tag">
+                    ${topic}
+                    <span class="remove" onclick="removeTopic('${topic}')">×</span>
+                </div>
+            `).join('');
+        }
+
+        function renderTopicTree() {
+            const tree = document.getElementById('topicTree');
+            const topics = Object.keys(topicData).sort();
+            
+            tree.innerHTML = topics.map(topic => {
+                const data = topicData[topic];
+                if (!data.visible) return '';
+
+                const stateClass = data.lastState || 'normal';
+                const value = data.lastValue || '-';
+                const timestamp = data.lastUpdate ? data.lastUpdate.toLocaleString('pl-PL') : '-';
+
+                return `
+                    <div class="topic-item ${stateClass}">
+                        <div class="topic-header">
+                            <div class="topic-name">${topic}</div>
+                            <div class="topic-actions">
+                                <button class="icon-btn" onclick="toggleChart('${topic}')" title="Wykres">
+                                    📈
+                                </button>
+                                <button class="icon-btn" onclick="openThresholdModal('${topic}')" title="Konfiguracja">
+                                    ⚙️
+                                </button>
+                                <button class="icon-btn" onclick="toggleVisibility('${topic}')" title="Ukryj">
+                                    👁️
+                                </button>
+                            </div>
+                        </div>
+                        <div class="topic-value">${value}</div>
+                        <div class="topic-timestamp">Ostatnia aktualizacja: ${timestamp}</div>
+                        <div class="chart-container ${data.chartVisible ? 'visible' : ''}" id="chart-${topic.replace(/\//g, '-')}">
+                            <canvas id="canvas-${topic.replace(/\//g, '-')}"></canvas>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleVisibility(topic) {
+            topicData[topic].visible = !topicData[topic].visible;
+            renderTopicTree();
+        }
+
+        function toggleChart(topic) {
+            topicData[topic].chartVisible = !topicData[topic].chartVisible;
+            renderTopicTree();
+            if (topicData[topic].chartVisible) {
+                setTimeout(() => createChart(topic), 100);
+            }
+        }
+
+        function createChart(topic) {
+            const canvasId = 'canvas-' + topic.replace(/\//g, '-');
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            const data = topicData[topic].values.slice(-50);
+
+            if (charts[topic]) {
+                charts[topic].destroy();
+            }
+
+            charts[topic] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.timestamp.toLocaleTimeString('pl-PL')),
+                    datasets: [{
+                        label: 'Wartość',
+                        data: data.map(d => parseFloat(d.value) || 0),
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {display: false}
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart(topic) {
+            if (!topicData[topic].chartVisible || !charts[topic]) return;
+            
+            const data = topicData[topic].values.slice(-50);
+            charts[topic].data.labels = data.map(d => d.timestamp.toLocaleTimeString('pl-PL'));
+            charts[topic].data.datasets[0].data = data.map(d => parseFloat(d.value) || 0);
+            charts[topic].update('none');
+        }
+
+        function openThresholdModal(topic) {
+            currentConfigTopic = topic;
+            const data = topicData[topic];
+            
+            document.getElementById('modalTopic').value = topic;
+            document.getElementById('modalWarning').value = data.thresholds.warning || '';
+            document.getElementById('modalCritical').value = data.thresholds.critical || '';
+            document.getElementById('modalDevice').value = data.thresholds.device || '';
+            document.getElementById('modalSensor').value = data.thresholds.sensor || '';
+            
+            document.getElementById('thresholdModal').classList.add('visible');
+        }
+
+        function closeThresholdModal() {
+            document.getElementById('thresholdModal').classList.remove('visible');
+            currentConfigTopic = null;
+        }
+
+        async function saveThresholds() {
+            if (!currentConfigTopic) return;
+
+            const warning = parseFloat(document.getElementById('modalWarning').value);
+            const critical = parseFloat(document.getElementById('modalCritical').value);
+            const device = document.getElementById('modalDevice').value;
+            const sensor = document.getElementById('modalSensor').value;
+
+            topicData[currentConfigTopic].thresholds = {
+                warning: isNaN(warning) ? null : warning,
+                critical: isNaN(critical) ? null : critical,
+                device,
+                sensor
+            };
+
+            try {
+                await fetch('/api/thresholds', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        topic: currentConfigTopic,
+                        thresholds: topicData[currentConfigTopic].thresholds
+                    })
+                });
+            } catch (error) {
+                console.error('Błąd zapisu progów:', error);
+            }
+
+            closeThresholdModal();
+            renderTopicTree();
+        }
+
+        // Uruchom po załadowaniu
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
