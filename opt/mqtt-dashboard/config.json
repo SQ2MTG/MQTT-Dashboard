@@ -1,0 +1,23 @@
+{
+  "broker": "ws://10.10.0.4:9002",
+  "port": 3000,
+  "dataDir": "/opt/mqtt-dashboard/history",
+  "retainDays": 7,
+  "pushover": {
+    "token": "akd8sqxoo4q17qv72g62v4wyu7ufem",
+    "user": "uuf2ajfth5tayjcser9wy8wuux6ncz",
+    "enabled": true
+  },
+  "topics": [
+    {
+      "topic": "building/room1/temperature",
+      "hidden": false,
+      "threshold": 30
+    },
+    {
+      "topic": "building/room2/humidity",
+      "hidden": false,
+      "threshold": 70
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+[Unit]
+Description=MQTT Dashboard Service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/mqtt-dashboard
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+# jeśli potrzebne PATH itp.
+
+[Install]
+WantedBy=multi-user.target

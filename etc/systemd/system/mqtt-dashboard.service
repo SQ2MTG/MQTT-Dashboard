@@ -1,0 +1,15 @@
+[Unit]
+Description=MQTT Dashboard Service
+After=network.target
+
+[Service]
+Type=simple
+User=SQ2MTG
+WorkingDirectory=/opt/mqtt-dashboard
+ExecStart=/usr/bin/node /opt/mqtt-dashboard/server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

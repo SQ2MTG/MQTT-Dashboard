@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>MQTT Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>MQTT Dashboard</h1>
+      <div id="controls">
+        <input id="newTopic" placeholder="topic/to/subscribe" />
+        <input id="newThreshold" placeholder="threshold (optional)" style="width:120px"/>
+        <button id="btnSubscribe">Subscribe</button>
+        <button id="btnReload">Reload config</button>
+      </div>
+    </header>
+    <main>
+      <section id="tree"></section>
+    </main>
+    <footer>
+      <small>MQTT Dashboard — runs as service on server</small>
+    </footer>
+  </div>
+
+  <template id="topic-template">
+    <div class="topic">
+      <div class="topic-header">
+        <div class="topic-title"></div>
+        <div class="topic-controls">
+          <span class="topic-last"></span>
+          <button class="btn-history">Show Chart</button>
+          <button class="btn-toggle-hide">Hide</button>
+          <button class="btn-unsub">Unsubscribe</button>
+        </div>
+      </div>
+      <div class="topic-body" style="display:none;">
+        <label>Threshold x: <input class="input-threshold" type="number" style="width:90px;"/></label>
+        <div class="chart-wrap" style="display:none;"><canvas></canvas></div>
+      </div>
+    </div>
+  </template>
+
+  <script src="/app.js"></script>
+</body>
+</html>
